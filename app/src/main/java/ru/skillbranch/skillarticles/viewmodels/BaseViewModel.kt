@@ -53,6 +53,13 @@ abstract class BaseViewModel<T>(initState: T) : ViewModel() {
         state.observe(owner, Observer { onChanged(it!!) })
     }
 
+    fun <D> observeSubState(owner: LifecycleOwner, transform: (T) -> D, onChanged: (subState: D) -> Unit) {
+        state
+            .map(transform) // Трансформируем весь стэйт в необходимый сабстэйт
+            .distinctUntilChanged() // Игнорируем, если нет изменений
+            .observe(owner, Observer{onChanged(it!!)})
+    }
+
     /***
      * более компактная форма записи observe() метода LiveData вызывает лямбда выражение обработчик
      * только в том случае если уведомление не было уже обработанно ранее,
