@@ -36,24 +36,24 @@ class Bottombar @JvmOverloads constructor(
     }
 
     override fun onSaveInstanceState(): Parcelable {
-        val saveState = SavedState(super.onSaveInstanceState())
+       val saveState = SavedState(super.onSaveInstanceState())
         saveState.ssIsSearchMode = isSearchMode
         return saveState
     }
 
     override fun onRestoreInstanceState(state: Parcelable?) {
         super.onRestoreInstanceState(state)
-        if (state is SavedState) {
+        if(state is SavedState){
             isSearchMode = state.ssIsSearchMode
             binding.reveal.isVisible = isSearchMode
-            binding.bottomGroup.isVisible = isSearchMode
+            binding.bottomGroup.isVisible = !isSearchMode
         }
     }
 
     fun setSearchState(isSearch: Boolean) {
         if (isSearch == isSearchMode || !isAttachedToWindow) return
         isSearchMode = isSearch
-        if (isSearchMode) animateShowSearch()
+        if (isSearchMode) animatedShowSearch()
         else animateHideSearch()
     }
 
@@ -72,39 +72,38 @@ class Bottombar @JvmOverloads constructor(
         }
     }
 
-    fun animateShowSearch() {
+    private fun animatedShowSearch() {
         binding.reveal.isVisible = true
-
-        val endRadius = hypot(width.toDouble(), height * 0.5).toInt()
-        val anim = ViewAnimationUtils.createCircularReveal(
-            this,
+        val endRadius = hypot(width.toDouble(), height / 2.toDouble())
+        val va = ViewAnimationUtils.createCircularReveal(
+            binding.reveal,
             width,
             height / 2,
             0f,
             endRadius.toFloat()
         )
-
-        anim.doOnEnd {
+        va.doOnEnd {
             binding.bottomGroup.isVisible = false
         }
-        anim.start()
+        va.start()
     }
 
-    fun animateHideSearch() {
+    private fun animateHideSearch() {
         binding.bottomGroup.isVisible = true
 
-        val endRadius = hypot(width.toDouble(), height * 0.5).toInt()
-        val anim = ViewAnimationUtils.createCircularReveal(
-            this,
+        val endRadius = hypot(width.toDouble(), height / 2.toDouble())
+
+        val va = ViewAnimationUtils.createCircularReveal(
+            binding.reveal,
             width,
             height / 2,
             endRadius.toFloat(),
             0f
         )
-        anim.doOnEnd {
+        va.doOnEnd {
             binding.reveal.isVisible = false
         }
-        anim.start()
+        va.start()
     }
 
     private class SavedState : BaseSavedState, Parcelable {
@@ -126,8 +125,9 @@ class Bottombar @JvmOverloads constructor(
         }
 
         companion object CREATOR : Parcelable.Creator<SavedState> {
-            override fun createFromParcel(parcel: Parcel): SavedState = SavedState(parcel)
+            override fun createFromParcel(parcel: Parcel)= SavedState(parcel)
             override fun newArray(size: Int): Array<SavedState?> = arrayOfNulls(size)
         }
+
     }
 }

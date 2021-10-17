@@ -1,16 +1,15 @@
 package ru.skillbranch.skillarticles.viewmodels
 
 import android.os.Bundle
-import java.io.Serializable
+import android.util.Log
 import androidx.annotation.UiThread
 import androidx.annotation.VisibleForTesting
 import androidx.core.os.bundleOf
 import androidx.lifecycle.*
 import androidx.savedstate.SavedStateRegistryOwner
+import java.io.Serializable
 
-abstract class BaseViewModel<T>(
-    initState: T,
-    private val savedStateHandle: SavedStateHandle) : ViewModel() where T : VMState {
+abstract class BaseViewModel<T>(initState: T, private val savedStateHandle: SavedStateHandle) : ViewModel() where T : VMState{
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     val notifications = MutableLiveData<Event<Notify>>()
 
@@ -22,10 +21,11 @@ abstract class BaseViewModel<T>(
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     val state: MediatorLiveData<T> = MediatorLiveData<T>().apply {
         val restoredState = savedStateHandle.get<Any>("state")?.let {
-            if (it is Bundle) initState.fromBundle(it) as? T
+            if(it is Bundle) initState.fromBundle(it) as? T
             else it as T
         }
-        value = initState
+        Log.e("BaseViewModel", "handle restore state $restoredState")
+        value = restoredState ?: initState
     }
 
     /***
@@ -66,11 +66,11 @@ abstract class BaseViewModel<T>(
     /***
      * вспомогательная функция позволяющая наблюдать за изменениями части стейта ViewModel
      */
-    fun<D> observeSubState(owner: LifecycleOwner, transform: (T) -> D, onChanged: (substate: D) -> Unit) {
+    fun <D> observeSubState(owner: LifecycleOwner, transform : (T) -> D, onChanged: (substate: D) -> Unit) {
         state
-            .map(transform)
-            .distinctUntilChanged()
-            .observe(owner, Observer{ onChanged(it!!) })
+            .map(transform) //трансыормируем весь стейт в необходимую модель substate
+            .distinctUntilChanged() //отфильтровываем и пропускаем дальше только если значение измнилось
+            .observe(owner, Observer { onChanged(it!!) })
     }
 
     /***
@@ -96,13 +96,28 @@ abstract class BaseViewModel<T>(
         }
     }
 
-    fun saveState() {
+    /***
+     * сохранение стейта в bundle
+     */
+    fun saveSate(){
+        Log.e("BaseViewModel", "save state $currentState")
         savedStateHandle.set("state", currentState)
     }
+
+    /***
+     * восстановление стейта из bundle после смерти процесса
+     */
+   /* fun restoreSate(){
+        val restoredState = savedStateHandle.get<T>("state")
+        Log.e("BaseViewModel", "restore state $restoredState")
+        restoredState ?: return
+        state.value = restoredState
+    }*/
+
 }
 
-class ViewModelFactory(owner: SavedStateRegistryOwner, private val params: String) : AbstractSavedStateViewModelFactory(owner, bundleOf()) {
-    override fun <T : ViewModel> create(
+class ViewModelFactory(owner : SavedStateRegistryOwner, private val params: String) : AbstractSavedStateViewModelFactory(owner, bundleOf()) {
+   override fun <T : ViewModel?> create(
         key: String,
         modelClass: Class<T>,
         handle: SavedStateHandle
@@ -163,7 +178,7 @@ sealed class Notify() {
     ) : Notify()
 }
 
-public interface VMState : Serializable {
+public interface VMState : Serializable{
     fun toBundle(): Bundle
-    fun fromBundle(bundle: Bundle): VMState?
+    fun fromBundle(bundle:Bundle): VMState?
 }

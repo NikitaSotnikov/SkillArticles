@@ -4,7 +4,7 @@ import org.json.JSONObject
 import ru.skillbranch.skillarticles.data.local.User
 import ru.skillbranch.skillarticles.extensions.asMap
 
-class UserJsonAdapter : JsonAdapter<User> {
+class UserJsonAdapter() : JsonAdapter<User>{
     override fun fromJson(json: String): User? {
         if (json.isEmpty()) return null
         JSONObject(json).run {

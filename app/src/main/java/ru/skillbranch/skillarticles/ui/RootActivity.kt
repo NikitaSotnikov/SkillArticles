@@ -1,6 +1,7 @@
 package ru.skillbranch.skillarticles.ui
 
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.text.Selection
 import android.text.Spannable
 import android.text.SpannableString
@@ -33,27 +34,24 @@ import ru.skillbranch.skillarticles.viewmodels.*
 
 class RootActivity : AppCompatActivity(), IArticleView {
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    var viewModelFactory: ViewModelProvider.Factory = ViewModelFactory(this, "0")
+    var viewModelFactory: ViewModelProvider.Factory  = ViewModelFactory(this, "0")
     private val viewModel: ArticleViewModel by viewModels { viewModelFactory }
+    val vb: ActivityRootBinding by viewBinding(ActivityRootBinding::inflate)
 
-    private val vb: ActivityRootBinding by viewBinding(ActivityRootBinding::inflate)
-
-    private val vbBottombar
+    val vbBottombar
         get() = vb.bottombar.binding
-    private val vbSubmenu
+    val vbSubmenu
         get() = vb.submenu.binding
     private lateinit var searchView: SearchView
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val bgColor by AttrValue(R.attr.colorSecondary)
-
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val fgColor by AttrValue(R.attr.colorOnSecondary)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //setContentView(vb.root)
         setupToolbar()
         setupBottombar()
         setupSubmenu()
@@ -73,12 +71,12 @@ class RootActivity : AppCompatActivity(), IArticleView {
         searchView = (menuItem.actionView as SearchView)
         searchView.queryHint = getString(R.string.article_search_placeholder)
 
-        //restore SearchView onCreateOptionsMenu
+        //restore SearchView
         if (viewModel.currentState.isSearch) {
             menuItem.expandActionView()
             searchView.setQuery(viewModel.currentState.searchQuery, false)
             searchView.requestFocus()
-        }else{
+        } else {
             searchView.clearFocus()
         }
 
@@ -111,7 +109,7 @@ class RootActivity : AppCompatActivity(), IArticleView {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        viewModel.saveState()
+        viewModel.saveSate()
         super.onSaveInstanceState(outState)
     }
 
@@ -140,26 +138,30 @@ class RootActivity : AppCompatActivity(), IArticleView {
                     setAction(label) { handler.invoke() }
                 }
             }
-            else -> { /* nothing */ }
+            else -> { /* nothing */
+            }
         }
 
         snackbar.show()
     }
 
     override fun setupSubmenu() {
-        with (vbSubmenu) {
+        with(vbSubmenu) {
             btnTextUp.setOnClickListener { viewModel.handleUpText() }
             btnTextDown.setOnClickListener { viewModel.handleDownText() }
             switchMode.setOnClickListener { viewModel.handleNightMode() }
         }
+
     }
 
     override fun setupBottombar() {
-        with (vbBottombar) {
+        with(vbBottombar) {
+            val vbr = vb
+
             btnLike.setOnClickListener { viewModel.handleLike() }
+            btnBookmark.setOnClickListener { viewModel.handleBookmark() }
             btnShare.setOnClickListener { viewModel.handleShare() }
             btnSettings.setOnClickListener { viewModel.handleToggleMenu() }
-            btnBookmark.setOnClickListener { viewModel.handleBookmark() }
 
             btnResultUp.setOnClickListener {
                 searchView.clearFocus()
@@ -172,41 +174,39 @@ class RootActivity : AppCompatActivity(), IArticleView {
             }
 
             btnSearchClose.setOnClickListener {
-                Log.e("RootActivity", "btnSearchClose.setOnClickListener")
                 viewModel.handleSearchMode(false)
                 invalidateOptionsMenu()
             }
         }
     }
 
+    override fun renderBotombar(data: BottombarData) {
+        with(vbBottombar) {
+            btnSettings.isChecked = data.isShowMenu
+            btnLike.isChecked = data.isLike
+            btnBookmark.isChecked = data.isBookmark
+        }
+
+        if (data.isSearch) showSearchBar(data.resultsCount, data.searchPosition)
+        else hideSearchBar()
+
+    }
+
     override fun renderSubmenu(data: SubmenuData) {
-        with (vbSubmenu) {
+        with(vbSubmenu) {
             switchMode.isChecked = data.isDarkMode
             btnTextDown.isChecked = !data.isBigText
             btnTextUp.isChecked = data.isBigText
         }
 
-        if (data.isShowMenu) vb.submenu.open()
-        else vb.submenu.close()
-    }
-
-    override fun renderBotombar(data: BottombarData) {
-//        Log.e("RootActivity", "renderBottombar $data")
-        with (vbBottombar) {
-            btnSettings.isChecked = data.isShowMenu
-            btnLike.isChecked = data.isLike
-            btnBookmark.isChecked = data.isBookmark
-        }
-        if (data.isSearch) showSearchBar(data.resultsCount, data.searchPosition)
-        else hideSearchBar()
+        if (data.isShowMenu) vb.submenu.open() else vb.submenu.close()
     }
 
     override fun renderUi(data: ArticleState) {
-//        Log.e("RootActivity", "renderUi $data")
         delegate.localNightMode =
             if (data.isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
 
-        with (vb.tvTextContent) {
+        with(vb.tvTextContent) {
             textSize = if (data.isBigText) 18f else 14f
             movementMethod = ScrollingMovementMethod()
             val content = if (data.isLoadingContent) "loading" else data.content.first()
@@ -215,7 +215,7 @@ class RootActivity : AppCompatActivity(), IArticleView {
         }
 
         //bind toolbar
-        with (vb.toolbar) {
+        with(vb.toolbar) {
             title = data.title ?: "loading"
             subtitle = data.category ?: "loading"
             if (data.categoryIcon != null) logo = getDrawable(data.categoryIcon as Int)
@@ -226,9 +226,7 @@ class RootActivity : AppCompatActivity(), IArticleView {
         if (data.isSearch) {
             renderSearchResult(data.searchResults)
             renderSearchPosition(data.searchPosition)
-        }
-        else
-            clearSearchResult()
+        } else clearSearchResult()
     }
 
     override fun setupToolbar() {
@@ -244,9 +242,11 @@ class RootActivity : AppCompatActivity(), IArticleView {
             it.marginEnd = dpToIntPx(16)
             logo.layoutParams = it
         }
+
     }
 
     override fun renderSearchResult(searchResult: List<Pair<Int, Int>>) {
+
         val content = vb.tvTextContent.text as Spannable
 
         clearSearchResult()
@@ -259,6 +259,7 @@ class RootActivity : AppCompatActivity(), IArticleView {
                 SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }
+
     }
 
     override fun renderSearchPosition(searchPosition: Int) {
@@ -266,22 +267,23 @@ class RootActivity : AppCompatActivity(), IArticleView {
 
         val spans = content.getSpans<SearchSpan>()
 
-        // remove old search focus span
+        //remove old search focus span
         content.getSpans<SearchFocusSpan>()
             .forEach { content.removeSpan(it) }
 
         if (spans.isNotEmpty()) {
-            // find position span
+            //find position span
             val result = spans[searchPosition]
-            // move to selection
+            //move to selection
             Selection.setSelection(content, content.getSpanStart(result))
-            // set new focus span
+            //set new search focus span
             content.setSpan(
                 SearchFocusSpan(bgColor, fgColor),
                 content.getSpanStart(result),
                 content.getSpanEnd(result),
                 SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
             )
+
         }
     }
 
@@ -292,8 +294,7 @@ class RootActivity : AppCompatActivity(), IArticleView {
     }
 
     override fun showSearchBar(resultsCount: Int, searchPosition: Int) {
-        with (vb.bottombar) {
-            Log.e("RootActivity", "showSearchBar")
+        with(vb.bottombar) {
             setSearchState(true)
             setSearchInfo(resultsCount, searchPosition)
         }
@@ -301,8 +302,7 @@ class RootActivity : AppCompatActivity(), IArticleView {
     }
 
     override fun hideSearchBar() {
-        with (vb.bottombar) {
-            Log.e("RootActvity", "hideSearchBar")
+        with(vb.bottombar) {
             setSearchState(false)
         }
         vb.scroll.setMarginOptionally(bottom = dpToIntPx(0))

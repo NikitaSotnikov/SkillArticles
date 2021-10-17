@@ -45,8 +45,8 @@
         <item name="android:tint">@color/tint_color</item>
         <item name="android:background">@drawable/ripple</item>
     </style>
-
-    <style name="BottomSearchIcon" parent="BottombarIcon">
+    
+    <style name="BottombarSearchIcon" parent="BottombarIcon">
         <item name="tint">@color/tint_search_color</item>
     </style>
 

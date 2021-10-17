@@ -9,10 +9,6 @@ import androidx.viewbinding.ViewBinding
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-/**
- * Умеет обрабатывать сгенерированный уже viewBinding класс.
- * Надуть из него вьюху и подставить в необходимом жизненном цикле активити.
- */
 class ViewBindingDelegate<T : ViewBinding>(
     private val activity: AppCompatActivity,
     private val initializer: (LayoutInflater) -> T
@@ -25,12 +21,13 @@ class ViewBindingDelegate<T : ViewBinding>(
 
     @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
     fun onCreate() {
+        //run on activity create callback called
         if (_value == null) {
             _value = initializer(activity.layoutInflater)
         }
 
-        activity.setContentView(_value!!.root)
-        activity.lifecycle.removeObserver(this)
+        activity.setContentView(_value!!.root) //set main view
+        activity.lifecycle.removeObserver(this) //unregister observe this
     }
 
     override fun getValue(thisRef: AppCompatActivity, property: KProperty<*>): T {

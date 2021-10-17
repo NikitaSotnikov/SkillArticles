@@ -2,6 +2,8 @@ package ru.skillbranch.skillarticles.viewmodels
 
 import android.os.Bundle
 import android.util.Log
+import androidx.annotation.VisibleForTesting
+import androidx.core.os.bundleOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.SavedStateHandle
 import ru.skillbranch.skillarticles.data.ArticleData
@@ -14,9 +16,11 @@ class ArticleViewModel(private val articleId: String, savedStateHandle: SavedSta
     private val repository = ArticleRepository()
 
     init {
-        savedStateHandle.setSavedStateProvider("state") {
+        //set custom saved state provider for non serializable or custom states
+        savedStateHandle.setSavedStateProvider("state"){
             currentState.toBundle()
         }
+
         //subscribe on mutable data
         subscribeOnDataSource(getArticleData()) { article, state ->
             article ?: return@subscribeOnDataSource null
@@ -135,21 +139,19 @@ class ArticleViewModel(private val articleId: String, savedStateHandle: SavedSta
 
     override fun handleSearch(query: String?) {
         query ?: return
+
         val result = currentState.content.firstOrNull().indexesOf(query)
             .map { it to it + query.length }
+
         updateState { it.copy(searchQuery = query, searchResults = result) }
     }
 
     override fun handleUpResult() {
-        updateState {
-            it.copy(searchPosition = it.searchPosition.dec())
-        }
+        updateState { it.copy(searchPosition = it.searchPosition.dec()) }
     }
 
     override fun handleDownResult() {
-        updateState {
-            it.copy(searchPosition = it.searchPosition.inc())
-        }
+        updateState { it.copy(searchPosition = it.searchPosition.inc()) }
     }
 }
 
@@ -181,10 +183,12 @@ data class ArticleState(
             .asMap()
             .toList()
             .toTypedArray()
-        return Bundle()
+
+        return bundleOf(*map)
     }
 
-    override fun fromBundle(bundle: Bundle): VMState? {
+    override fun fromBundle(bundle: Bundle): ArticleState? {
+
         val map = bundle.keySet().associateWith { bundle[it] }
         return copy(
             isAuth = map["isAuth"] as Boolean,
@@ -204,10 +208,10 @@ data class ArticleState(
             category = map["category"] as String?,
             categoryIcon = map["categoryIcon"] as Any?,
             date = map["date"] as String?,
-            author = map["author"] as String?,
+            author = map["author"] as Any?,
             poster = map["poster"] as String?,
             content = map["content"] as List<String>,
-            reviews = map["reviews"] as List<Any>
+            reviews = map["reviews"] as List<Any>,
         )
     }
 }

@@ -6,11 +6,12 @@ import androidx.appcompat.app.AppCompatDelegate
 import ru.skillbranch.skillarticles.data.PrefManager
 
 class App : Application() {
-    companion object {
+
+    companion object{
         private var instance : App? = null
 
-        fun applicationContext() : Context {
-            return instance!!.applicationContext
+        fun applicationContext() : Context{
+            return  instance!!.applicationContext
         }
     }
 
@@ -20,9 +21,6 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        AppCompatDelegate.setDefaultNightMode(
-            if (PrefManager().isDarkMode) AppCompatDelegate.MODE_NIGHT_YES
-            else AppCompatDelegate.MODE_NIGHT_NO
-        )
+        AppCompatDelegate.setDefaultNightMode(if(PrefManager().isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
     }
 }
