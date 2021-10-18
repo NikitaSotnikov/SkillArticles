@@ -14,15 +14,19 @@ object MarkdownParser {
     private const val ITALIC_GROUP = "((?<!\\*)\\*[^*].*?[^*]?\\*(?!\\*)|(?<!_)_[^_].*?[^_]?_(?!_))"
     private const val BOLD_GROUP =
         "((?<!\\*)\\*{2}[^*].*?[^*]?\\*{2}(?!\\*)|(?<!_)_{2}[^_].*?[^_]?_{2}(?!_))"
-    private const val STRIKE_GROUP =
-        "((?<!~)~{2}[^~].*?[^~]?~{2}(?!~))"
+    private const val STRIKE_GROUP = "((?<!~)~{2}[^~].*?[^~]?~{2}(?!~))"
     private const val RULE_GROUP = "(^[-_*]{3}$)"
     private const val INLINE_GROUP = "((?<!`)`[^`\\s].*?[^`\\s]?`(?!`))"
     private const val LINK_GROUP = "(\\[[^\\[\\]]*?]\\(.+?\\)|^\\[*?]\\(.*?\\))"
+    private const val ORDERED_LIST_ITEM_GROUP = "(^[\\d]. .+$)"
+    private const val BLOCK_CODE_GROUP = "((?<!`)`{3}[^`\\s][\\s\\S]*?[^`]?`{3}(?!`))"
+    private const val IMAGE_GROUP = "(\\!\\[[^\\[\\]]*?]\\(.+?\\))"
+
 
     //result regex
     private const val MARKDOWN_GROUPS = "$UNORDERED_LIST_ITEM_GROUP|$HEADER_GROUP|$QUOTE_GROUP" +
-            "|$ITALIC_GROUP|$BOLD_GROUP|$STRIKE_GROUP|$RULE_GROUP|$INLINE_GROUP|$LINK_GROUP"
+            "|$ITALIC_GROUP|$BOLD_GROUP|$STRIKE_GROUP|$RULE_GROUP|$INLINE_GROUP|$LINK_GROUP" +
+            "|$ORDERED_LIST_ITEM_GROUP|$BLOCK_CODE_GROUP|$IMAGE_GROUP"
 
     private val elementsPattern by lazy { Pattern.compile(MARKDOWN_GROUPS, Pattern.MULTILINE) }
 
@@ -63,7 +67,7 @@ object MarkdownParser {
             var text: CharSequence
 
             //groups range for iterate by groups
-            val groups = 1..9
+            val groups = 1..12
             var group = -1
             for (gr in groups) {
                 if (matcher.group(gr) != null) {
@@ -169,6 +173,60 @@ object MarkdownParser {
                     parents.add(element)
                     lastStartIndex = endIndex
                 }
+                //ORDERED LIST ITEM
+                10 -> {
+                    //text "1. "
+                    val order = string.subSequence(startIndex, startIndex.plus(2)).toString()
+                    //text without "1. "
+                    text = string.subSequence(startIndex.plus(3), endIndex)
+
+                    //find inner elements
+                    val subs = findElements(text)
+                    val element = Element.OrderedListItem(order, text, subs)
+                    parents.add(element)
+
+                    //next find start from position "endIndex" (last regex character)
+                    lastStartIndex = endIndex
+                }
+                //BLOCK CODE
+                11 -> {
+                    //text without "```{}```"
+                    text = string.subSequence(startIndex.plus(3), endIndex.plus(-3))
+                    val element = Element.BlockCode(text = text)
+                    parents.add(element)
+                    lastStartIndex = endIndex
+                }
+
+                //IMAGE
+                12 -> {
+                    //text without "!"
+                    text = string.subSequence(startIndex.plus(1), endIndex)
+
+                    //ALT
+                    val altSource: String = "\\[(.*)]".toRegex().find(text)!!.value
+                    val altSourceWithoutSymbols = altSource.substring(1, altSource.length.plus(-1))
+                    var alt: String? = null
+                    if (altSourceWithoutSymbols.isNotEmpty()) {
+                        alt = altSourceWithoutSymbols
+                    }
+
+                    //LINK AND TITLE
+                    val (link: String, titleSource: String) = "\\((.*?)\\s*(\"(?:.*[^\"])\")?\\s*\\)".toRegex()
+                        .find(text)!!.destructured
+                    var title = ""
+                    if (titleSource.isNotEmpty()) {
+                        title = titleSource.substring(1, titleSource.length.plus(-1))
+                    }
+
+                    println("-------------")
+                    println(alt)
+                    println(link)
+                    println(title)
+
+                    val element = Element.Image(link, alt, title)
+                    parents.add(element)
+                    lastStartIndex = endIndex
+                }
             }
 
         }
@@ -190,67 +248,74 @@ sealed class Element() {
 
     data class Text(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class UnorderedListItem(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Header(
         val level: Int = 1,
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Quote(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Italic(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Bold(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Strike(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Rule(
         override val text: CharSequence = " ",
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class InlineCode(
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class Link(
         val link: String,
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class OrderedListItem(
         val order: String,
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element()
 
     data class BlockCode(
         val type: Type = Type.MIDDLE,
         override val text: CharSequence,
-        override val elements: List<Element> = emptyList()
+        override val elements: List<Element> = emptyList(),
     ) : Element() {
         enum class Type { START, END, MIDDLE, SINGLE }
     }
+
+    data class Image(
+        val url: String,
+        val alt: String?,
+        override val text: CharSequence,
+        override val elements: List<Element> = emptyList(),
+    ) : Element()
 }
