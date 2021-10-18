@@ -42,7 +42,9 @@ object MarkdownParser {
     /**
      * clear markdown text to string without markdown characters
      */
-    fun clear(string: String?): String? {
+    fun clear(string: String): String? {
+        val result = MarkdownParser.parse(string)
+        println(result)
         return null
     }
 
@@ -204,6 +206,7 @@ object MarkdownParser {
 
                     //ALT
                     val altSource: String = "\\[(.*)]".toRegex().find(text)!!.value
+                    //text without "[{}]"
                     val altSourceWithoutSymbols = altSource.substring(1, altSource.length.plus(-1))
                     var alt: String? = null
                     if (altSourceWithoutSymbols.isNotEmpty()) {
